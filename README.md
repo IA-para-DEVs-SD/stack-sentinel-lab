@@ -1,6 +1,6 @@
 # Stack Sentinel Lab
 
-Laboratorio da Semana 3 para construir, em camadas, o **Stack Sentinel**: um agente que investiga tickets, builds, documentacao operacional e saude de servicos usando um servidor MCP didatico e um fluxo inspirado em LangGraph.
+Laboratorio da Semana 3 para construir, em camadas, o **Stack Sentinel**: um agente que investiga tickets, builds, documentacao operacional e saude de servicos usando MCP com FastMCP e um fluxo inspirado em LangGraph.
 
 ## Como rodar
 
@@ -71,9 +71,10 @@ Endpoints principais:
 - Ex02: criar `fetch_ticket_context`.
 - Ex03: criar MCP server minimo.
 - Ex04: registrar primeira tool MCP.
-- Ex05: criar e registrar tool de build.
-- Ex06: criar resources MCP.
-- Ex07: criar prompt MCP.
+- Ex04.5: refatorar a exposicao MCP para FastMCP.
+- Ex05: criar e registrar tool de build no FastMCP.
+- Ex06: criar resources MCP e expo-los no FastMCP.
+- Ex07: criar prompt MCP e expo-lo no FastMCP.
 - Ex08: criar grafo minimo.
 - Ex09: definir `AgentState`.
 - Ex10: criar node de classificacao.

@@ -7,7 +7,7 @@ Criar um scaffolding estável para que os alunos implementem o Stack Sentinel pr
 ## Decisões técnicas
 
 - Usar apenas biblioteca padrão do Python para reduzir atrito.
-- Simular MCP com `SimpleMCPServer` e `MCPClient` em memória.
+- Introduzir MCP com `SimpleMCPServer` e `MCPClient` em memoria, depois refatorar a exposicao real para `FastMCP` a partir do Ex04.5.
 - Simular LangGraph com um grafo simples e testável, preservando os conceitos de state, nodes e routing.
 - Persistir dados mockados em JSON para facilitar leitura, edição e versionamento.
 - Criar testes por exercício usando `unittest`, executados por `run.py`.
