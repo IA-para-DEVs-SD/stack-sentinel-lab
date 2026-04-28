@@ -1,6 +1,8 @@
 from typing import Any, Dict
-
-from stack_sentinel.mcp_server.registry import SimpleMCPServer
+from contextlib import contextmanager
+import importlib
+import sys
+import types
 
 
 class FakeMockServiceClient:
@@ -74,73 +76,95 @@ class BrokenMockServiceClient(FakeMockServiceClient):
         return {"ok": False, "error": "service unavailable"}
 
 
-def configured_fake_server() -> SimpleMCPServer:
-    from stack_sentinel.mcp_server.registry import PromptDefinition, ResourceDefinition, ToolDefinition
-    from stack_sentinel.shared.contracts import (
-        BUILD_TOOL_NAME,
-        INCIDENT_RESPONSE_RESOURCE,
-        INCIDENT_TRIAGE_PROMPT,
-        TICKET_TOOL_NAME,
-    )
+class FakeFastMCP:
+    def __init__(self, name: str):
+        self.name = name
+        self.tools = {}
+        self.resources = {}
+        self.prompts = {}
 
-    server = SimpleMCPServer(
-        name="stack-sentinel-mcp",
-        description="fake configured server",
-        metadata={"domain": "incident-investigation", "version": "0.1.0"},
-    )
-    server.register_tool(
-        ToolDefinition(
-            name=TICKET_TOOL_NAME,
-            description="fake ticket tool",
-            input_schema={"required": ["ticket_id"]},
-            handler=lambda ticket_id: {
-                "ok": True,
-                "id": ticket_id,
-                "summary": "Usuarios relatam erro 500 ao tentar login no portal.",
-                "severity": "high",
-                "service": "auth-service",
-                "status": "open",
-                "build_id": "BLD-203",
-            },
-        )
-    )
-    server.register_tool(
-        ToolDefinition(
-            name=BUILD_TOOL_NAME,
-            description="fake build tool",
-            input_schema={"required": ["build_id"]},
-            handler=lambda build_id: {
-                "ok": True,
-                "id": build_id,
-                "status": "failed",
-                "service": "auth-service",
-                "branch": "main",
-                "failed_step": "integration-tests",
-                "log_excerpt": "HTTP 500",
-            },
-        )
-    )
-    server.register_resource(
-        ResourceDefinition(
-            uri=INCIDENT_RESPONSE_RESOURCE,
-            name="Incident Response Guide",
-            description="fake resource",
-            handler=lambda: {
-                "ok": True,
-                "uri": INCIDENT_RESPONSE_RESOURCE,
-                "title": "Incident Response Guide",
-                "content": "Identifique impacto, severidade, evidencias e proximo passo.",
-            },
-        )
-    )
-    server.register_prompt(
-        PromptDefinition(
-            name=INCIDENT_TRIAGE_PROMPT,
-            description="fake prompt",
-            arguments=["user_question", "available_context"],
-            handler=lambda user_question, available_context: (
-                "Resuma o problema, cite severidade, sugira proximo passo e nao invente dados."
-            ),
-        )
-    )
-    return server
+    def tool(self, func=None):
+        def decorator(handler):
+            self.tools[handler.__name__] = handler
+            return handler
+
+        if func is not None:
+            return decorator(func)
+        return decorator
+
+    def resource(self, uri: str):
+        def decorator(handler):
+            self.resources[uri] = handler
+            return handler
+
+        return decorator
+
+    def prompt(self, func=None):
+        def decorator(handler):
+            self.prompts[handler.__name__] = handler
+            return handler
+
+        if func is not None:
+            return decorator(func)
+        return decorator
+
+    def run(self):
+        return None
+
+    def list_tools(self):
+        return [{"name": name, "description": handler.__doc__ or ""} for name, handler in self.tools.items()]
+
+    def call_tool(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        if name not in self.tools:
+            return {"ok": False, "error": f"unknown tool: {name}"}
+        return self.tools[name](**arguments)
+
+    def list_resources(self):
+        return [{"uri": uri, "name": uri, "description": ""} for uri in self.resources]
+
+    def read_resource(self, uri: str) -> Dict[str, Any]:
+        if uri not in self.resources:
+            return {"ok": False, "error": f"unknown resource: {uri}"}
+        return self.resources[uri]()
+
+    def list_prompts(self):
+        return [{"name": name, "description": handler.__doc__ or ""} for name, handler in self.prompts.items()]
+
+    def get_prompt(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        if name not in self.prompts:
+            return {"ok": False, "error": f"unknown prompt: {name}"}
+        return {"ok": True, "name": name, "content": self.prompts[name](**arguments)}
+
+
+def install_fake_fastmcp() -> None:
+    """Instala um modulo mcp.server.fastmcp fake para testes deterministico."""
+    mcp_module = types.ModuleType("mcp")
+    server_module = types.ModuleType("mcp.server")
+    fastmcp_module = types.ModuleType("mcp.server.fastmcp")
+    fastmcp_module.FastMCP = FakeFastMCP
+    server_module.fastmcp = fastmcp_module
+    mcp_module.server = server_module
+    sys.modules["mcp"] = mcp_module
+    sys.modules["mcp.server"] = server_module
+    sys.modules["mcp.server.fastmcp"] = fastmcp_module
+
+
+@contextmanager
+def fastmcp_test_client():
+    from stack_sentinel.clients.mcp_client import MCPClient
+    from stack_sentinel.mcp_server import resources as resources_module
+    from stack_sentinel.mcp_server import tools as tools_module
+
+    install_fake_fastmcp()
+    sys.modules.pop("stack_sentinel.mcp_server.fastmcp_server", None)
+    fastmcp_server = importlib.import_module("stack_sentinel.mcp_server.fastmcp_server")
+
+    original_tools_client = tools_module.MockServiceClient
+    original_resources_client = resources_module.MockServiceClient
+    tools_module.MockServiceClient = FakeMockServiceClient
+    resources_module.MockServiceClient = FakeMockServiceClient
+    try:
+        yield MCPClient(fastmcp_server.create_fastmcp_server())
+    finally:
+        tools_module.MockServiceClient = original_tools_client
+        resources_module.MockServiceClient = original_resources_client
