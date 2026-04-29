@@ -1,19 +1,21 @@
 # Stack Sentinel Lab
 
-Laboratorio da Semana 3 para construir, em camadas, o **Stack Sentinel**: um agente que investiga tickets, builds, documentacao operacional e saude de servicos usando MCP com FastMCP e um fluxo inspirado em LangGraph.
+Laboratorio da Semana 3 para construir, em camadas, o **Stack Sentinel**: um agente que investiga tickets, builds, documentacao operacional e saude de servicos usando MCP com FastMCP e LangGraph.
 
 ## Como rodar
 
 Use sempre os comandos abaixo a partir da raiz do repositorio:
 
 ```bash
-python run.py doctor
-python run.py setup
-python run.py mock-api
-python run.py test ex00
-python run.py test all
-python run.py demo
+python3.10 run.py doctor
+python3.10 run.py setup
+python3.10 run.py mock-api
+python3.10 run.py test ex00
+python3.10 run.py test all
+python3.10 run.py demo
 ```
+
+O projeto usa FastMCP e LangGraph, entao requer Python 3.10 ou superior.
 
 No Windows, se `python` nao funcionar:
 
