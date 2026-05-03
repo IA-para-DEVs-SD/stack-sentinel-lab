@@ -1,4 +1,5 @@
 from stack_sentinel.llm.base import LLMClient
+from stack_sentinel.shared.utils import extract_ticket_id
 
 
 class FakeLLMClient(LLMClient):
@@ -12,3 +13,5 @@ class FakeLLMClient(LLMClient):
             return "docs"
         return "unknown"
 
+    def extract_ticket_id(self, user_input: str):
+        return extract_ticket_id(user_input)

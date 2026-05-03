@@ -88,6 +88,57 @@ def mock_api(port: int) -> int:
     return 0
 
 
+def load_dotenv(path: Path) -> None:
+    if not path.exists():
+        return
+    for raw_line in path.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        os.environ.setdefault(key, value)
+
+
+def chat(use_fake_llm: bool) -> int:
+    from stack_sentinel.agent.graph import run_stack_sentinel_flow
+    from stack_sentinel.agent.state import create_initial_state
+    from stack_sentinel.clients.mcp_client import create_fastmcp_client
+    from stack_sentinel.llm.fake_client import FakeLLMClient
+    from stack_sentinel.llm.provider_client import ProviderLLMClient
+
+    load_dotenv(ROOT / ".env")
+
+    llm = FakeLLMClient() if use_fake_llm else ProviderLLMClient()
+    mcp_client = create_fastmcp_client()
+
+    print("Stack Sentinel chat pronto. Digite 'sair' para encerrar.")
+    print("Dica: deixe a Mock API rodando em outro terminal com `python run.py mock-api`.")
+
+    while True:
+        try:
+            user_input = input("\nVoce> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nEncerrando.")
+            return 0
+
+        if user_input.lower() in {"sair", "exit", "quit"}:
+            print("Encerrando.")
+            return 0
+        if not user_input:
+            continue
+
+        state = create_initial_state(user_input)
+        try:
+            result = run_stack_sentinel_flow(state, llm=llm, mcp_client=mcp_client)
+        except Exception as exc:
+            print(f"Stack Sentinel> Nao consegui executar o agente: {exc}")
+            continue
+
+        print(f"Stack Sentinel> {result.get('final_answer')}")
+
+
 def demo() -> int:
     from stack_sentinel.agent.graph import run_stack_sentinel_flow
     from stack_sentinel.agent.state import create_initial_state
@@ -122,6 +173,8 @@ def main() -> int:
     test_parser = sub.add_parser("test")
     test_parser.add_argument("target")
     sub.add_parser("demo")
+    chat_parser = sub.add_parser("chat")
+    chat_parser.add_argument("--fake-llm", action="store_true", help="Usa FakeLLMClient em vez do Gemini.")
     args = parser.parse_args()
 
     os.chdir(ROOT)
@@ -135,6 +188,8 @@ def main() -> int:
         return run_tests(args.target)
     if args.command == "demo":
         return demo()
+    if args.command == "chat":
+        return chat(use_fake_llm=args.fake_llm)
     return 1
 
 

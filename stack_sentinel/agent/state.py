@@ -12,8 +12,15 @@ class AgentState(TypedDict, total=False):
 
 
 def create_initial_state(user_input: str) -> AgentState:
-    """Contrato do Ex09: cria o state inicial do agente."""
-    raise NotImplementedError("Ex09 ainda nao implementado")
+    return {
+        "user_input": user_input,
+        "intent": None,
+        "ticket_id": None,
+        "build_id": None,
+        "context": None,
+        "error": None,
+        "final_answer": None,
+    }
 
 
 def update_state(state: AgentState, **changes: Any) -> AgentState:
